@@ -1,0 +1,10 @@
+flask
+flask-cors
+anthropic
+yfinance
+pandas
+pandas-datareader
+numpy
+scipy
+requests
+Pillow

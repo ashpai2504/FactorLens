@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FactorLens</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --indigo: #4f46e5;
+    --indigo-light: #6366f1;
+    --indigo-bg: #eef2ff;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --green: #059669;
+    --red: #dc2626;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #fff;
+    color: var(--gray-900);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* Header */
+  header {
+    padding: 48px 0 32px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--gray-900);
+  }
+  header h1 span { color: var(--indigo); }
+  header p {
+    margin-top: 8px;
+    color: var(--gray-500);
+    font-size: 1.05rem;
+  }
+
+  /* Input area */
+  .input-section {
+    margin-bottom: 32px;
+  }
+  .input-box {
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px;
+    transition: border-color 0.2s;
+  }
+  .input-box:focus-within {
+    border-color: var(--indigo);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.08);
+  }
+  .input-box textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    font-size: 0.975rem;
+    line-height: 1.6;
+    color: var(--gray-800);
+    min-height: 100px;
+  }
+  .input-box textarea::placeholder { color: var(--gray-400); }
+
+  .input-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--gray-100);
+  }
+  .upload-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--gray-50);
+    border: 1px dashed var(--gray-300);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--gray-600);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .upload-btn:hover {
+    background: var(--indigo-bg);
+    border-color: var(--indigo-light);
+    color: var(--indigo);
+  }
+  .upload-btn svg { width: 16px; height: 16px; }
+  .file-name {
+    font-size: 0.8rem;
+    color: var(--indigo);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .clear-file {
+    background: none;
+    border: none;
+    color: var(--gray-400);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  .clear-file:hover { color: var(--red); }
+  #file-input { display: none; }
+
+  .submit-btn {
+    padding: 10px 28px;
+    background: var(--indigo);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.925rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .submit-btn:hover { background: var(--indigo-light); }
+  .submit-btn:disabled {
+    background: var(--gray-300);
+    cursor: not-allowed;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+  }
+  .submit-btn.loading .spinner { display: block; }
+  .submit-btn.loading .btn-text { display: none; }
+  .submit-btn.loading::after { content: "Analyzing…"; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Image preview */
+  .image-preview {
+    margin-top: 12px;
+    display: none;
+  }
+  .image-preview.visible { display: block; }
+  .image-preview img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-200);
+  }
+
+  /* Error */
+  .error-msg {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius);
+    color: var(--red);
+    font-size: 0.9rem;
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+
+  /* Results */
+  .results {
+    display: none;
+    margin-bottom: 40px;
+  }
+  .results.visible { display: block; }
+
+  .result-card {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+    animation: fadeIn 0.4s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .result-card .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .card-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .card-icon.blue { background: var(--indigo-bg); }
+  .card-icon.amber { background: #fef3c7; }
+  .card-icon.green { background: #d1fae5; }
+  .card-header h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--gray-800);
+  }
+  .card-body {
+    padding: 16px 20px 20px;
+    font-size: 0.925rem;
+    color: var(--gray-700);
+    line-height: 1.7;
+  }
+
+  /* Market pulse */
+  .market-pulse {
+    margin: 40px 0;
+    padding: 20px 0;
+    border-top: 1px solid var(--gray-100);
+  }
+  .pulse-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gray-400);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .pulse-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .pulse-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--gray-50);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    border: 1px solid var(--gray-100);
+  }
+  .pulse-item .name {
+    font-weight: 600;
+    color: var(--gray-700);
+  }
+  .pulse-item .price {
+    color: var(--gray-500);
+  }
+  .pulse-item .change {
+    font-weight: 600;
+  }
+  .pulse-item .change.up { color: var(--green); }
+  .pulse-item .change.down { color: var(--red); }
+  .pulse-loading {
+    color: var(--gray-400);
+    font-size: 0.85rem;
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 20px 0 40px;
+    color: var(--gray-400);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--gray-100);
+  }
+
+  /* Drag & drop overlay */
+  .drop-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(79,70,229,0.08);
+    border: 3px dashed var(--indigo-light);
+    border-radius: 16px;
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .drop-overlay.visible {
+    display: flex;
+  }
+  .drop-overlay span {
+    background: var(--indigo);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+
+  /* Meta tags */
+  .meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .meta-tag {
+    padding: 4px 10px;
+    background: var(--indigo-bg);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--indigo);
+  }
+
+  @media (max-width: 600px) {
+    header { padding: 32px 0 24px; }
+    header h1 { font-size: 1.6rem; }
+    .input-actions { flex-direction: column; gap: 12px; align-items: stretch; }
+    .submit-btn { justify-content: center; }
+    .pulse-strip { gap: 6px; }
+    .pulse-item { font-size: 0.75rem; padding: 4px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="drop-overlay" id="drop-overlay">
+  <span>Drop image here</span>
+</div>
+
+<div class="container">
+  <header>
+    <h1>Factor<span>Lens</span></h1>
+    <p>Understand why your portfolio moved — powered by factor analysis and AI</p>
+  </header>
+
+  <div class="input-section">
+    <div class="input-box" id="input-box">
+      <textarea id="user-input" placeholder="Paste your portfolio (e.g. AAPL 40%, MSFT 30%, NVDA 30%), describe a loss, or ask anything about your investments…" rows="4"></textarea>
+      <div class="image-preview" id="image-preview">
+        <img id="preview-img" src="" alt="Uploaded image">
+      </div>
+      <div class="input-actions">
+        <div class="upload-area">
+          <label class="upload-btn" for="file-input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            Upload image
+          </label>
+          <input type="file" id="file-input" accept="image/*">
+          <span class="file-name" id="file-name"></span>
+          <button class="clear-file" id="clear-file" style="display:none" title="Remove image">&times;</button>
+        </div>
+        <button class="submit-btn" id="submit-btn" onclick="submitAnalysis()">
+          <div class="spinner"></div>
+          <span class="btn-text">Analyze</span>
+        </button>
+      </div>
+    </div>
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="meta-tags" id="meta-tags"></div>
+
+    <div class="result-card">
+      <div class="card-header">
+        <div class="card-icon blue">📊</div>
+        <h3>What Happened</h3>
+      </div>
+      <div class="card-body" id="what-happened"></div>
+    </div>
+
+    <div class="result-card">
+      <div class="card-header">
+        <div class="card-icon amber">🔍</div>
+        <h3>Why It Happened</h3>
+      </div>
+      <div class="card-body" id="why-happened"></div>
+    </div>
+
+    <div class="result-card">
+      <div class="card-header">
+        <div class="card-icon green">💡</div>
+        <h3>What You Can Do</h3>
+      </div>
+      <div class="card-body" id="what-to-do"></div>
+    </div>
+  </div>
+
+  <div class="market-pulse" id="market-pulse">
+    <div class="pulse-label">Market Pulse</div>
+    <div class="pulse-strip" id="pulse-strip">
+      <span class="pulse-loading">Loading market data…</span>
+    </div>
+  </div>
+
+  <footer>
+    FactorLens &mdash; Not financial advice. Data may be delayed.
+  </footer>
+</div>
+
+<script>
+  let imageBase64 = null;
+
+  const fileInput = document.getElementById("file-input");
+  const fileNameEl = document.getElementById("file-name");
+  const clearFileBtn = document.getElementById("clear-file");
+  const imagePreview = document.getElementById("image-preview");
+  const previewImg = document.getElementById("preview-img");
+
+  fileInput.addEventListener("change", handleFileSelect);
+  clearFileBtn.addEventListener("click", clearImage);
+
+  function handleFileSelect(e) {
+    const file = e.target.files?.[0] || e.dataTransfer?.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const full = ev.target.result;
+      imageBase64 = full.split(",")[1];
+      previewImg.src = full;
+      imagePreview.classList.add("visible");
+      fileNameEl.textContent = file.name;
+      clearFileBtn.style.display = "inline";
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearImage() {
+    imageBase64 = null;
+    fileInput.value = "";
+    fileNameEl.textContent = "";
+    clearFileBtn.style.display = "none";
+    imagePreview.classList.remove("visible");
+    previewImg.src = "";
+  }
+
+  // Drag & drop
+  let dragCounter = 0;
+  const overlay = document.getElementById("drop-overlay");
+
+  document.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    dragCounter++;
+    if (dragCounter === 1) overlay.classList.add("visible");
+  });
+  document.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter === 0) overlay.classList.remove("visible");
+  });
+  document.addEventListener("dragover", (e) => e.preventDefault());
+  document.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    overlay.classList.remove("visible");
+    if (e.dataTransfer.files.length) {
+      fileInput.files = e.dataTransfer.files;
+      handleFileSelect({ target: fileInput });
+    }
+  });
+
+  // Submit
+  async function submitAnalysis() {
+    const text = document.getElementById("user-input").value.trim();
+    const errorEl = document.getElementById("error-msg");
+    const resultsEl = document.getElementById("results");
+    const btn = document.getElementById("submit-btn");
+
+    errorEl.classList.remove("visible");
+    resultsEl.classList.remove("visible");
+
+    if (!text && !imageBase64) {
+      errorEl.textContent = "Please enter some text or upload an image.";
+      errorEl.classList.add("visible");
+      return;
+    }
+
+    btn.classList.add("loading");
+    btn.disabled = true;
+
+    try {
+      const payload = { text };
+      if (imageBase64) payload.image = imageBase64;
+
+      const resp = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await resp.json();
+
+      if (data.status !== "ok") {
+        throw new Error(data.message || "Analysis failed.");
+      }
+
+      const a = data.analysis;
+      document.getElementById("what-happened").innerHTML = formatText(a.what_happened);
+      document.getElementById("why-happened").innerHTML = formatText(a.why_it_happened);
+      document.getElementById("what-to-do").innerHTML = formatText(a.what_to_do);
+
+      renderMetaTags(data.meta);
+      resultsEl.classList.add("visible");
+      resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    } catch (err) {
+      errorEl.textContent = err.message || "Something went wrong. Please try again.";
+      errorEl.classList.add("visible");
+    } finally {
+      btn.classList.remove("loading");
+      btn.disabled = false;
+    }
+  }
+
+  function formatText(text) {
+    if (!text) return "";
+    return text
+      .replace(/\n(\d+)\.\s/g, '<br><strong>$1.</strong> ')
+      .replace(/\n-\s/g, '<br>• ')
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+
+  function renderMetaTags(meta) {
+    const container = document.getElementById("meta-tags");
+    container.innerHTML = "";
+    if (!meta) return;
+
+    if (meta.tickers_detected?.length) {
+      meta.tickers_detected.forEach(t => {
+        const tag = document.createElement("span");
+        tag.className = "meta-tag";
+        tag.textContent = t;
+        container.appendChild(tag);
+      });
+    }
+    if (meta.factor_loadings) {
+      const tag = document.createElement("span");
+      tag.className = "meta-tag";
+      tag.textContent = "Factor Analysis ✓";
+      container.appendChild(tag);
+    }
+  }
+
+  // Keyboard shortcut
+  document.getElementById("user-input").addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      submitAnalysis();
+    }
+  });
+
+  // Market pulse
+  async function loadMarketPulse() {
+    const strip = document.getElementById("pulse-strip");
+    try {
+      const resp = await fetch("/api/market-pulse");
+      const data = await resp.json();
+      if (data.status !== "ok" || !data.data || Object.keys(data.data).length === 0) {
+        strip.innerHTML = '<span class="pulse-loading">Market data unavailable</span>';
+        return;
+      }
+      strip.innerHTML = "";
+      const order = ["S&P 500", "Nasdaq 100", "Russell 2000", "VIX", "TNX", "20Y Treasury", "Gold", "US Dollar"];
+      const entries = Object.entries(data.data).sort((a, b) => {
+        const ai = order.indexOf(a[0]), bi = order.indexOf(b[0]);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
+      for (const [name, d] of entries) {
+        const dir = d.change_pct >= 0 ? "up" : "down";
+        const sign = d.change_pct >= 0 ? "+" : "";
+        const item = document.createElement("div");
+        item.className = "pulse-item";
+        item.innerHTML = `
+          <span class="name">${name}</span>
+          <span class="price">${d.price.toLocaleString()}</span>
+          <span class="change ${dir}">${sign}${d.change_pct}%</span>
+        `;
+        strip.appendChild(item);
+      }
+    } catch {
+      strip.innerHTML = '<span class="pulse-loading">Market data unavailable</span>';
+    }
+  }
+
+  loadMarketPulse();
+</script>
+</body>
+</html>
