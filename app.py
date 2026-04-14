@@ -5,6 +5,9 @@ import traceback
 from datetime import datetime, timedelta
 from io import BytesIO
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -433,4 +436,8 @@ def analyze():
 
 
 if __name__ == "__main__":
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("\n⚠  ANTHROPIC_API_KEY not set.")
+        print("   Create a .env file with: ANTHROPIC_API_KEY=sk-ant-...")
+        print("   Or export it: export ANTHROPIC_API_KEY=sk-ant-...\n")
     app.run(debug=True, port=5000)
