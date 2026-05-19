@@ -525,6 +525,134 @@
     .pulse-strip { gap: 6px; }
     .pulse-item { font-size: 0.75rem; padding: 6px 10px; }
   }
+
+  /* Mode tabs */
+  .mode-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px;
+    width: fit-content;
+    box-shadow: var(--shadow-sm);
+  }
+  .mode-tab {
+    padding: 7px 22px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mode-tab.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 8px var(--accent-muted);
+  }
+  .mode-tab:hover:not(.active) {
+    color: var(--text);
+    background: var(--accent-faint);
+  }
+
+  /* Compare inputs */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .compare-input-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .compare-input-label.a { color: var(--accent); }
+  .compare-input-label.b { color: #7c3aed; }
+  html[data-theme="dark"] .compare-input-label.b { color: #a78bfa; }
+
+  .compare-submit-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  /* Factor comparison table */
+  .factor-table-wrap {
+    display: none;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-sm);
+  }
+  .factor-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .factor-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--pulse-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .factor-table th:nth-child(2) { color: var(--accent); }
+  .factor-table th:nth-child(3) { color: #7c3aed; }
+  html[data-theme="dark"] .factor-table th:nth-child(3) { color: #a78bfa; }
+  .factor-table td {
+    padding: 9px 14px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .factor-table tr:last-child td { border-bottom: none; }
+  .factor-table td:first-child { font-weight: 500; color: var(--text); }
+  .fv-better { color: var(--green); font-weight: 600; }
+  .fv-worse { color: var(--red); }
+
+  /* Compare results */
+  .compare-result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 36px;
+  }
+  .compare-col-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .compare-col-header.a { background: var(--accent-muted); color: var(--accent); }
+  .compare-col-header.b { background: rgba(124, 58, 237, 0.12); color: #7c3aed; }
+  html[data-theme="dark"] .compare-col-header.b { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
+
+  @media (max-width: 600px) {
+    .compare-grid { grid-template-columns: 1fr; }
+    .compare-result-grid { grid-template-columns: 1fr; }
+    .compare-submit-row { justify-content: stretch; }
+    .compare-submit-row .submit-btn { width: 100%; justify-content: center; }
+  }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -562,6 +690,12 @@
     <p>Understand why your portfolio moved — powered by factor analysis and AI</p>
   </header>
 
+  <div class="mode-tabs">
+    <button type="button" id="mode-single" class="mode-tab active" onclick="setMode('single')">Single</button>
+    <button type="button" id="mode-compare" class="mode-tab" onclick="setMode('compare')">Compare</button>
+  </div>
+
+  <div id="single-input-section">
   <div class="input-section">
     <div class="input-box" id="input-box">
       <textarea id="user-input" placeholder="Paste your portfolio (e.g. AAPL 40%, MSFT 30%, NVDA 30%), describe a loss, or ask anything about your investments…" rows="4"></textarea>
@@ -614,7 +748,70 @@
       </div>
       <div class="card-body" id="what-to-do"></div>
     </div>
-  </div>
+  </div><!-- /single-input-section -->
+
+  <!-- Compare mode -->
+  <div id="compare-section" style="display:none">
+    <div class="compare-grid">
+      <div>
+        <div class="compare-input-label a">Portfolio A</div>
+        <div class="input-box">
+          <textarea id="portfolio-a" placeholder="e.g. AAPL 40%, MSFT 30%, NVDA 30%" rows="5"></textarea>
+        </div>
+      </div>
+      <div>
+        <div class="compare-input-label b">Portfolio B</div>
+        <div class="input-box">
+          <textarea id="portfolio-b" placeholder="e.g. SPY 60%, TLT 40%" rows="5"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="compare-submit-row">
+      <button type="button" class="submit-btn" id="compare-btn" onclick="submitCompare()">
+        <div class="spinner"></div>
+        <span class="btn-text">Compare Portfolios</span>
+      </button>
+    </div>
+    <div class="error-msg" id="compare-error-msg" style="margin-top:12px"></div>
+
+    <div id="compare-results" style="display:none; margin-top:28px">
+      <div class="factor-table-wrap" id="factor-table-wrap"></div>
+      <div class="compare-result-grid">
+        <div>
+          <div class="compare-col-header a">Portfolio A</div>
+          <div class="meta-tags" id="cmp-tags-a"></div>
+          <div class="result-card">
+            <div class="card-header"><div class="card-icon blue">📊</div><h3>What Happened</h3></div>
+            <div class="card-body" id="cmp-what-happened-a"></div>
+          </div>
+          <div class="result-card">
+            <div class="card-header"><div class="card-icon amber">🔍</div><h3>Why It Happened</h3></div>
+            <div class="card-body" id="cmp-why-happened-a"></div>
+          </div>
+          <div class="result-card">
+            <div class="card-header"><div class="card-icon green">💡</div><h3>What You Can Do</h3></div>
+            <div class="card-body" id="cmp-what-to-do-a"></div>
+          </div>
+        </div>
+        <div>
+          <div class="compare-col-header b">Portfolio B</div>
+          <div class="meta-tags" id="cmp-tags-b"></div>
+          <div class="result-card">
+            <div class="card-header"><div class="card-icon blue">📊</div><h3>What Happened</h3></div>
+            <div class="card-body" id="cmp-what-happened-b"></div>
+          </div>
+          <div class="result-card">
+            <div class="card-header"><div class="card-icon amber">🔍</div><h3>Why It Happened</h3></div>
+            <div class="card-body" id="cmp-why-happened-b"></div>
+          </div>
+          <div class="result-card">
+            <div class="card-header"><div class="card-icon green">💡</div><h3>What You Can Do</h3></div>
+            <div class="card-body" id="cmp-what-to-do-b"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /compare-section -->
 
   <div class="market-pulse" id="market-pulse">
     <div class="pulse-label">Market Pulse</div>
@@ -849,6 +1046,131 @@
   }
 
   loadMarketPulse();
+
+  function setMode(mode) {
+    const isCompare = mode === 'compare';
+    document.getElementById('mode-single').classList.toggle('active', !isCompare);
+    document.getElementById('mode-compare').classList.toggle('active', isCompare);
+    document.getElementById('single-input-section').style.display = isCompare ? 'none' : '';
+    document.getElementById('results').classList.remove('visible');
+    document.getElementById('compare-section').style.display = isCompare ? '' : 'none';
+    document.getElementById('compare-results').style.display = 'none';
+    document.getElementById('error-msg').classList.remove('visible');
+    document.getElementById('compare-error-msg').classList.remove('visible');
+  }
+
+  async function submitCompare() {
+    const textA = document.getElementById('portfolio-a').value.trim();
+    const textB = document.getElementById('portfolio-b').value.trim();
+    const errorEl = document.getElementById('compare-error-msg');
+    const btn = document.getElementById('compare-btn');
+    const resultsEl = document.getElementById('compare-results');
+
+    errorEl.classList.remove('visible');
+
+    if (!textA || !textB) {
+      errorEl.textContent = 'Please enter both portfolios to compare.';
+      errorEl.classList.add('visible');
+      return;
+    }
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+      const resp = await fetch('/api/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ portfolio_a: textA, portfolio_b: textB }),
+      });
+      const data = await resp.json();
+      if (data.status !== 'ok') throw new Error(data.message || 'Comparison failed.');
+
+      renderCompareResults(data.results);
+      resultsEl.style.display = '';
+      resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'compare_run', {
+          has_factor_a: !!(data.results.a?.meta?.factor_loadings),
+          has_factor_b: !!(data.results.b?.meta?.factor_loadings),
+        });
+      }
+    } catch (err) {
+      errorEl.textContent = err.message || 'Something went wrong. Please try again.';
+      errorEl.classList.add('visible');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  function renderCompareResults(results) {
+    const fl_a = results.a.meta.factor_loadings;
+    const fl_b = results.b.meta.factor_loadings;
+    const ftWrap = document.getElementById('factor-table-wrap');
+
+    if (fl_a || fl_b) {
+      const factors = [
+        { key: 'alpha_annualized_pct', label: 'Alpha (annualized %)', higherBetter: true },
+        { key: 'Mkt-RF',  label: 'Market Beta',           higherBetter: null },
+        { key: 'SMB',     label: 'Size (SMB)',             higherBetter: null },
+        { key: 'HML',     label: 'Value (HML)',            higherBetter: null },
+        { key: 'RMW',     label: 'Profitability (RMW)',    higherBetter: true },
+        { key: 'CMA',     label: 'Investment (CMA)',       higherBetter: null },
+        { key: 'R_squared', label: 'R² (variance explained)', higherBetter: true },
+      ];
+      let rows = '';
+      for (const f of factors) {
+        const va = fl_a?.[f.key];
+        const vb = fl_b?.[f.key];
+        let ca = '', cb = '';
+        if (va != null && vb != null && f.higherBetter !== null) {
+          if (va > vb) { ca = f.higherBetter ? 'fv-better' : 'fv-worse'; cb = f.higherBetter ? 'fv-worse' : 'fv-better'; }
+          else if (vb > va) { cb = f.higherBetter ? 'fv-better' : 'fv-worse'; ca = f.higherBetter ? 'fv-worse' : 'fv-better'; }
+        }
+        rows += `<tr><td>${f.label}</td><td class="${ca}">${va != null ? va : '—'}</td><td class="${cb}">${vb != null ? vb : '—'}</td></tr>`;
+      }
+      ftWrap.innerHTML = `<table class="factor-table">
+        <thead><tr><th>Factor</th><th>Portfolio A</th><th>Portfolio B</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+      ftWrap.style.display = '';
+    } else {
+      ftWrap.style.display = 'none';
+    }
+
+    ['a', 'b'].forEach(side => {
+      const r = results[side];
+      document.getElementById(`cmp-what-happened-${side}`).innerHTML = formatText(r.analysis.what_happened);
+      document.getElementById(`cmp-why-happened-${side}`).innerHTML  = formatText(r.analysis.why_it_happened);
+      document.getElementById(`cmp-what-to-do-${side}`).innerHTML    = formatText(r.analysis.what_to_do);
+
+      const tags = document.getElementById(`cmp-tags-${side}`);
+      tags.innerHTML = '';
+      (r.meta.tickers_detected || []).forEach(t => {
+        const el = document.createElement('span');
+        el.className = 'meta-tag';
+        el.textContent = t;
+        tags.appendChild(el);
+      });
+      if (r.meta.factor_loadings) {
+        const el = document.createElement('span');
+        el.className = 'meta-tag';
+        el.textContent = 'Factor Analysis ✓';
+        tags.appendChild(el);
+      }
+    });
+  }
+
+  ['portfolio-a', 'portfolio-b'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        submitCompare();
+      }
+    });
+  });
 </script>
 </body>
 </html>

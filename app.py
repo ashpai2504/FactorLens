@@ -340,6 +340,61 @@ def call_claude(context: str, image_b64: str | None = None) -> dict:
     return json.loads(raw)
 
 
+def _analyze_text(user_text: str, image_b64: str | None = None,
+                  market_data: dict | None = None,
+                  sector_perf: dict | None = None,
+                  ff_data=None) -> dict:
+    tickers = extract_tickers(user_text)
+    portfolio_weights = parse_portfolio(user_text)
+    if portfolio_weights:
+        tickers = list(set(tickers + list(portfolio_weights.keys())))
+
+    ticker_data = fetch_ticker_data(tickers)
+    if market_data is None:
+        market_data = fetch_market_data()
+    if sector_perf is None:
+        sector_perf = fetch_sector_performance()
+
+    needs_ff = (portfolio_weights and len(portfolio_weights) >= 1) or len(tickers) == 1
+    if needs_ff and ff_data is None:
+        ff_data = fetch_fama_french_factors(days=30)
+
+    factor_loadings = None
+    if portfolio_weights and ff_data is not None:
+        weighted_returns = None
+        for t, w in portfolio_weights.items():
+            if t in ticker_data and "daily_returns" in ticker_data[t]:
+                dr = np.array(ticker_data[t]["daily_returns"])
+                if weighted_returns is None:
+                    weighted_returns = np.zeros(len(dr))
+                n = min(len(weighted_returns), len(dr))
+                weighted_returns = weighted_returns[:n]
+                weighted_returns += w * dr[:n]
+        if weighted_returns is not None and len(weighted_returns) >= 10:
+            factor_loadings = run_factor_regression(weighted_returns, ff_data)
+    elif len(tickers) == 1 and tickers[0] in ticker_data and ff_data is not None:
+        dr = np.array(ticker_data[tickers[0]]["daily_returns"])
+        if len(dr) >= 10:
+            factor_loadings = run_factor_regression(dr, ff_data)
+
+    context = build_context_packet(
+        user_text, tickers, portfolio_weights,
+        ticker_data, market_data, sector_perf, factor_loadings,
+    )
+    analysis = call_claude(context, image_b64)
+
+    return {
+        "analysis": analysis,
+        "meta": {
+            "tickers_detected": tickers,
+            "portfolio_weights": portfolio_weights,
+            "factor_loadings": factor_loadings,
+            "market_snapshot": market_data,
+            "sectors": sector_perf,
+        },
+    }
+
+
 @app.route("/")
 def index():
     return send_from_directory(".", "index.html")
@@ -366,73 +421,45 @@ def analyze():
         if not user_text and not image_b64:
             return jsonify({"status": "error", "message": "Please provide some text or an image to analyze."}), 400
 
-        tickers = extract_tickers(user_text)
-        portfolio_weights = parse_portfolio(user_text)
-
-        if portfolio_weights:
-            tickers = list(set(tickers + list(portfolio_weights.keys())))
-
-        ticker_data = fetch_ticker_data(tickers)
-        market_data = fetch_market_data()
-        sector_perf = fetch_sector_performance()
-
-        factor_loadings = None
-        if portfolio_weights and len(portfolio_weights) >= 1:
-            ff_data = fetch_fama_french_factors(days=30)
-            if ff_data is not None:
-                weighted_returns = None
-                for t, w in portfolio_weights.items():
-                    if t in ticker_data and "daily_returns" in ticker_data[t]:
-                        dr = np.array(ticker_data[t]["daily_returns"])
-                        if weighted_returns is None:
-                            weighted_returns = np.zeros(len(dr))
-                        n = min(len(weighted_returns), len(dr))
-                        weighted_returns = weighted_returns[:n]
-                        weighted_returns += w * dr[:n]
-                if weighted_returns is not None and len(weighted_returns) >= 10:
-                    factor_loadings = run_factor_regression(weighted_returns, ff_data)
-        elif len(tickers) == 1 and tickers[0] in ticker_data:
-            ff_data = fetch_fama_french_factors(days=30)
-            if ff_data is not None:
-                dr = np.array(ticker_data[tickers[0]]["daily_returns"])
-                if len(dr) >= 10:
-                    factor_loadings = run_factor_regression(dr, ff_data)
-
-        context = build_context_packet(
-            user_text, tickers, portfolio_weights,
-            ticker_data, market_data, sector_perf, factor_loadings,
-        )
-
-        result = call_claude(context, image_b64)
-
-        return jsonify({
-            "status": "ok",
-            "analysis": result,
-            "meta": {
-                "tickers_detected": tickers,
-                "portfolio_weights": portfolio_weights,
-                "factor_loadings": factor_loadings,
-                "market_snapshot": market_data,
-                "sectors": sector_perf,
-            },
-        })
+        result = _analyze_text(user_text, image_b64)
+        return jsonify({"status": "ok", **result})
 
     except json.JSONDecodeError:
-        return jsonify({
-            "status": "error",
-            "message": "Failed to parse analysis response. Please try again.",
-        }), 500
+        return jsonify({"status": "error", "message": "Failed to parse analysis response. Please try again."}), 500
     except anthropic.APIError as e:
-        return jsonify({
-            "status": "error",
-            "message": f"Claude API error: {str(e)}",
-        }), 500
+        return jsonify({"status": "error", "message": f"Claude API error: {str(e)}"}), 500
     except Exception as e:
         traceback.print_exc()
-        return jsonify({
-            "status": "error",
-            "message": f"Analysis failed: {str(e)}",
-        }), 500
+        return jsonify({"status": "error", "message": f"Analysis failed: {str(e)}"}), 500
+
+
+@app.route("/api/compare", methods=["POST"])
+def compare():
+    """Side-by-side portfolio comparison endpoint."""
+    try:
+        body = request.get_json(force=True)
+        text_a = body.get("portfolio_a", "").strip()
+        text_b = body.get("portfolio_b", "").strip()
+
+        if not text_a or not text_b:
+            return jsonify({"status": "error", "message": "Both portfolios are required."}), 400
+
+        market_data = fetch_market_data()
+        sector_perf = fetch_sector_performance()
+        ff_data = fetch_fama_french_factors(days=30)
+
+        result_a = _analyze_text(text_a, market_data=market_data, sector_perf=sector_perf, ff_data=ff_data)
+        result_b = _analyze_text(text_b, market_data=market_data, sector_perf=sector_perf, ff_data=ff_data)
+
+        return jsonify({"status": "ok", "results": {"a": result_a, "b": result_b}})
+
+    except json.JSONDecodeError:
+        return jsonify({"status": "error", "message": "Failed to parse analysis response. Please try again."}), 500
+    except anthropic.APIError as e:
+        return jsonify({"status": "error", "message": f"Claude API error: {str(e)}"}), 500
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": f"Comparison failed: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
