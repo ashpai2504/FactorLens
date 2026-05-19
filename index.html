@@ -529,6 +529,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Google Analytics — replace G-XXXXXXXXXX with your Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-XXXXXXXXXX');
+</script>
 </head>
 <body>
 
@@ -755,6 +763,12 @@
       renderMetaTags(data.meta);
       resultsEl.classList.add("visible");
       resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      gtag('event', 'analysis_run', {
+        tickers: (data.meta?.tickers_detected || []).join(','),
+        has_image: !!imageBase64,
+        factor_analysis: !!(data.meta?.factor_loadings),
+      });
 
     } catch (err) {
       errorEl.textContent = err.message || "Something went wrong. Please try again.";
